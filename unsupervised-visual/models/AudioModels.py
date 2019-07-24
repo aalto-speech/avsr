@@ -2,7 +2,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 class ConvX3AudioNet(nn.Module):
     def __init__(self, embedding_dim=1024):
         super(ConvX3AudioNet, self).__init__()

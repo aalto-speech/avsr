@@ -47,17 +47,18 @@ class ImageCaptionDataset(Dataset):
             self.image_conf = image_conf
 
         crop_size = self.image_conf.get('crop_size', 224)
-        center_crop = self.image_conf.get('center_crop', False)
+        center_crop = self.image_conf.get('center_crop', True)
 
         if center_crop:
             self.image_resize_and_crop = transforms.Compose(
-                [transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor()])
+                [transforms.CenterCrop(224), transforms.ToTensor()])
         else:
             self.image_resize_and_crop = transforms.Compose(
                 [transforms.RandomResizedCrop(crop_size), transforms.ToTensor()])
 
         RGB_mean = self.image_conf.get('RGB_mean', [0.485, 0.456, 0.406])
-        RGB_std = self.image_conf.get('RGB_std', [0.229, 0.224, 0.225])
+        # Variance was not considered in the NIPS paper
+        RGB_std = self.image_conf.get('RGB_std', [1.0, 1.0, 1.0])
         self.image_normalize = transforms.Normalize(mean=RGB_mean, std=RGB_std)
 
         self.windows = {'hamming': scipy.signal.hamming,
