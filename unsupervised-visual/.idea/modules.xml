@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/DAVEnet-pytorch.iml" filepath="$PROJECT_DIR$/.idea/DAVEnet-pytorch.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/unsupervised-visual.iml" filepath="$PROJECT_DIR$/.idea/unsupervised-visual.iml" />
     </modules>
   </component>
 </project>

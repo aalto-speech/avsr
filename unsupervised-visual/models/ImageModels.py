@@ -1,6 +1,4 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torchvision.models as imagemodels
 import torch.utils.model_zoo as model_zoo
 
@@ -72,11 +70,12 @@ class Resnet50(imagemodels.ResNet):
 class VGG16(nn.Module):
     def __init__(self, embedding_dim=1024, pretrained=False):
         super(VGG16, self).__init__()
-        seed_model = imagemodels.__dict__['vgg16'](pretrained=pretrained).features
-        seed_model = nn.Sequential(*list(seed_model.children())[:-1]) # remove final maxpool
-        last_layer_index = len(list(seed_model.children()))
-        seed_model.add_module(str(last_layer_index),
-            nn.Conv2d(512, embedding_dim, kernel_size=(3,3), stride=(1,1), padding=(1,1)))
+        seed_model = tvmodels.__dict__['vgg16'](pretrained=True)
+        # Replace last 1000 class transform, with a linear transform of the embedding dimension size
+        seed_model.classifier = nn.Sequential(*list(seed_model.classifier.children())[:-1])
+        last_layer_index = len(list(seed_model.classifier.children()))
+        seed_model.classifier.add_module(str(last_layer_index),
+                                         nn.Linear(4096, embedding_dim))
         self.image_model = seed_model
 
     def forward(self, x):
