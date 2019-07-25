@@ -78,7 +78,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
 
     audio_model.train()
     image_model.train()
-    for e in range(args.n_epochs):
+    for e in range(epoch, args.n_epochs+1):
         adjust_learning_rate(args.lr, args.lr_decay, optimizer, epoch)
         end_time = time.time()
         audio_model.train()
@@ -99,8 +99,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
             pooling_ratio = round(audio_input.size(-1) / audio_output.size(-1))
             nframes.div_(pooling_ratio)
 
-            loss = sampled_margin_rank_loss(image_output, audio_output,
-                nframes, margin=args.margin, simtype=args.simtype)
+            loss = dot_product_loss(image_output, audio_output, nframes)
 
             loss.backward()
             optimizer.step()
@@ -124,7 +123,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
             global_step += 1
 
         recalls = validate(audio_model, image_model, test_loader, args)
-        
+
         avg_acc = (recalls['A_r10'] + recalls['I_r10']) / 2
 
         torch.save(audio_model.state_dict(),
@@ -188,7 +187,7 @@ def validate(audio_model, image_model, val_loader, args):
         audio_output = torch.cat(A_embeddings)
         nframes = torch.cat(frame_counts)
 
-        recalls = calc_recalls(image_output, audio_output, nframes, simtype=args.simtype)
+        recalls = calc_recalls(image_output, audio_output)
         A_r10 = recalls['A_r10']
         I_r10 = recalls['I_r10']
         A_r5 = recalls['A_r5']

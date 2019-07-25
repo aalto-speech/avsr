@@ -3,11 +3,11 @@ import pickle
 import numpy as np
 import torch
 
-def calc_recalls(image_outputs, audio_outputs, nframes, simtype='MISA'):
+def calc_recalls(image_outputs, audio_outputs):
     """
 	Computes recall at 1, 5, and 10 given encoded image and audio outputs.
 	"""
-    S = compute_matchmap_similarity_matrix(image_outputs, audio_outputs, nframes, simtype=simtype)
+    S = compute_dotproduct_similarity_matrix(image_outputs, audio_outputs)
     n = S.size(0)
     A2I_scores, A2I_ind = S.topk(10, 0)
     I2A_scores, I2A_ind = S.topk(10, 1)
@@ -131,6 +131,49 @@ def compute_matchmap_similarity_matrix(image_outputs, audio_outputs, nframes, si
                 S[image_idx, audio_idx] = matchmapSim(computeMatchmap(image_outputs[image_idx], audio_outputs[audio_idx][:, 0:nF]), simtype)
     return S
 
+def dot_product_loss(image_outputs, audio_outputs, margin=1.):
+    """
+    Computes the triplet margin ranking loss for each anchor image/caption pair
+    The impostor image/caption is randomly sampled from the minibatch
+    """
+    assert (image_outputs.dim() == 2)
+    assert (audio_outputs.dim() == 2)
+    n = image_outputs.size(0)
+    loss = torch.zeros(1, device=image_outputs.device, requires_grad=True)
+    for i in range(n):
+        I_imp_ind = i
+        A_imp_ind = i
+        while I_imp_ind == i:
+            I_imp_ind = np.random.randint(0, n)
+        while A_imp_ind == i:
+            A_imp_ind = np.random.randint(0, n)
+        anchorsim = torch.dot(image_outputs[i], audio_outputs[i])
+        Iimpsim = torch.dot(image_outputs[I_imp_ind], audio_outputs[i])
+        Aimpsim = torch.dot(image_outputs[i], audio_outputs[A_imp_ind])
+        A2I_simdif = margin + Iimpsim - anchorsim
+        if (A2I_simdif.data > 0).all():
+            loss = loss + A2I_simdif
+        I2A_simdif = margin + Aimpsim - anchorsim
+        if (I2A_simdif.data > 0).all():
+            loss = loss + I2A_simdif
+    loss = loss / n
+    return loss
+
+def compute_dotproduct_similarity_matrix(image_outputs, audio_outputs):
+    """
+    Assumes image_outputs is a (batchsize, embedding_dim) tensor
+    Assumes audio_outputs is a (batchsize, embedding_dim) tensor
+    Returns similarity matrix S where images are rows and audios are along the columns
+    """
+    assert(image_outputs.dim() == 2)
+    assert(audio_outputs.dim() == 2)
+    n = image_outputs.size(0)
+    S = torch.zeros(n, n, device=image_outputs.device)
+    for image_idx in range(n):
+            for audio_idx in range(n):
+                S[image_idx, audio_idx] = torch.dot(image_outputs[image_idx], audio_outputs[audio_idx])
+    return S
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self):
@@ -149,8 +192,8 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 def adjust_learning_rate(base_lr, lr_decay, optimizer, epoch):
-    """Sets the learning rate to the initial LR decayed by 10 every lr_decay epochs"""
-    lr = base_lr * (0.1 ** (epoch // lr_decay))
+    """Sets the learning rate to the initial LR decayed by 2 every lr_decay epochs"""
+    lr = base_lr * (0.5 ** (epoch // lr_decay))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
