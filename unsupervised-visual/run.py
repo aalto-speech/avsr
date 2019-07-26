@@ -62,15 +62,15 @@ args.resume = resume
 print(args)
 
 train_loader = torch.utils.data.DataLoader(
-    dataloaders.ImageCaptionDataset(args.data_train, audio_conf={'target_length', args.L}, image_conf={'center_crop', True}),
+    dataloaders.ImageCaptionDataset(args.data_train, audio_conf={'target_length': args.input_length}, image_conf={'center_crop': True}),
     batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True)
 
 val_loader = torch.utils.data.DataLoader(
-    dataloaders.ImageCaptionDataset(args.data_val, audio_conf={'target_length', args.L}, image_conf={'center_crop': True}),
+    dataloaders.ImageCaptionDataset(args.data_val, audio_conf={'target_length': args.input_length}, image_conf={'center_crop': True}),
     batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
-audio_model = models.Davenet()
-image_model = models.VGG16(pretrained=True)
+audio_model = models.ConvX3AudioNet(input_length=args.input_length)
+image_model = models.VGG16()
 
 if not bool(args.exp_dir):
     print("exp_dir not specified, automatically creating one...")

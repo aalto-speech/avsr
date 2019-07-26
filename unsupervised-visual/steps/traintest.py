@@ -99,7 +99,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
             pooling_ratio = round(audio_input.size(-1) / audio_output.size(-1))
             nframes.div_(pooling_ratio)
 
-            loss = dot_product_loss(image_output, audio_output, nframes)
+            loss = dot_product_loss(image_output, audio_output)
 
             loss.backward()
             optimizer.step()

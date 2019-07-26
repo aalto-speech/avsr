@@ -68,11 +68,15 @@ class Resnet50(imagemodels.ResNet):
         return x
 
 class VGG16(nn.Module):
-    def __init__(self, embedding_dim=1024, pretrained=False):
+    def __init__(self, embedding_dim=1024):
         super(VGG16, self).__init__()
-        seed_model = tvmodels.__dict__['vgg16'](pretrained=True)
-        # Replace last 1000 class transform, with a linear transform of the embedding dimension size
+        seed_model = imagemodels.__dict__['vgg16'](pretrained=True)
+        # Remove last 1000-dim class transform
         seed_model.classifier = nn.Sequential(*list(seed_model.classifier.children())[:-1])
+        # Freeze params
+        for param in seed_model.parameters():
+            param.requires_grad = False
+        # Add a linear transform of the embedding dimension size
         last_layer_index = len(list(seed_model.classifier.children()))
         seed_model.classifier.add_module(str(last_layer_index),
                                          nn.Linear(4096, embedding_dim))
