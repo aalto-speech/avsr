@@ -9,6 +9,7 @@ from .util import *
 def train(audio_model, image_model, train_loader, test_loader, args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.set_grad_enabled(True)
+    dot_loss = DotLoss()
     # Initialize all of the statistics we want to keep track of
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -20,8 +21,8 @@ def train(audio_model, image_model, train_loader, test_loader, args):
     exp_dir = args.exp_dir
 
     def _save_progress():
-        progress.append([epoch, global_step, best_epoch, best_acc, 
-                time.time() - start_time])
+        progress.append([epoch, global_step, best_epoch, best_acc,
+                         time.time() - start_time])
         with open("%s/progress.pkl" % exp_dir, "wb") as f:
             pickle.dump(progress, f)
 
@@ -53,13 +54,13 @@ def train(audio_model, image_model, train_loader, test_loader, args):
     image_trainables = [p for p in image_model.parameters() if p.requires_grad]
     trainables = audio_trainables + image_trainables
     if args.optim == 'sgd':
-       optimizer = torch.optim.SGD(trainables, args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+        optimizer = torch.optim.SGD(trainables, args.lr,
+                                    momentum=args.momentum,
+                                    weight_decay=args.weight_decay)
     elif args.optim == 'adam':
         optimizer = torch.optim.Adam(trainables, args.lr,
-                                weight_decay=args.weight_decay,
-                                betas=(0.95, 0.999))
+                                     weight_decay=args.weight_decay,
+                                     betas=(0.95, 0.999))
     else:
         raise ValueError('Optimizer %s is not supported' % args.optim)
 
@@ -72,7 +73,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
         print("loaded state dict from epoch %d" % epoch)
 
     epoch += 1
-    
+
     print("current #steps=%s, #epochs=%s" % (global_step, epoch))
     print("start training...")
 
@@ -99,7 +100,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
             pooling_ratio = round(audio_input.size(-1) / audio_output.size(-1))
             nframes.div_(pooling_ratio)
 
-            loss = dot_product_loss(image_output, audio_output)
+            loss = dot_loss(image_output, audio_output)
 
             loss.backward()
             optimizer.step()
@@ -110,11 +111,11 @@ def train(audio_model, image_model, train_loader, test_loader, args):
 
             if global_step % args.n_print_steps == 0 and global_step != 0:
                 print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss total {loss_meter.val:.4f} ({loss_meter.avg:.4f})'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss_meter=loss_meter), flush=True)
+                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                      'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                      'Loss total {loss_meter.val:.4f} ({loss_meter.avg:.4f})'.format(
+                    epoch, i, len(train_loader), batch_time=batch_time,
+                    data_time=data_time, loss_meter=loss_meter), flush=True)
                 if np.isnan(loss_meter.avg):
                     print("training diverged...")
                     return
@@ -127,18 +128,18 @@ def train(audio_model, image_model, train_loader, test_loader, args):
         avg_acc = (recalls['A_r10'] + recalls['I_r10']) / 2
 
         torch.save(audio_model.state_dict(),
-                "%s/models/audio_model.%d.pth" % (exp_dir, epoch))
+                   "%s/models/audio_model.%d.pth" % (exp_dir, epoch))
         torch.save(image_model.state_dict(),
-                "%s/models/image_model.%d.pth" % (exp_dir, epoch))
+                   "%s/models/image_model.%d.pth" % (exp_dir, epoch))
         torch.save(optimizer.state_dict(), "%s/models/optim_state.%d.pth" % (exp_dir, epoch))
-        
+
         if avg_acc > best_acc:
             best_epoch = epoch
             best_acc = avg_acc
-            shutil.copyfile("%s/models/audio_model.%d.pth" % (exp_dir, epoch), 
-                "%s/models/best_audio_model.pth" % (exp_dir))
-            shutil.copyfile("%s/models/image_model.%d.pth" % (exp_dir, epoch), 
-                "%s/models/best_image_model.pth" % (exp_dir))
+            shutil.copyfile("%s/models/audio_model.%d.pth" % (exp_dir, epoch),
+                            "%s/models/best_audio_model.pth" % (exp_dir))
+            shutil.copyfile("%s/models/image_model.%d.pth" % (exp_dir, epoch),
+                            "%s/models/best_image_model.pth" % (exp_dir))
         _save_progress()
         epoch += 1
 

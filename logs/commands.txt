@@ -1,0 +1,18 @@
+# Temp logs on commands
+
+# Find lines containing specific text, and output what is right after them
+cat FILE |sed -n -e 's/^.*TEXT //p' > OUTPUT_FILE
+
+# Output the float after the words "Loss total"
+sed -n 's/.*Loss total \([0-9]*\.[0-9]*\).*/\1/p'
+
+https://regexr.com/
+https://sed.js.org/
+http://www.grymoire.com/Unix/Sed.html
+
+https://tmuxcheatsheet.com/
+https://scicomp.aalto.fi/triton/tut/serial.html
+
+https://medium.com/vitalify-asia/whats-up-with-deep-learning-optimizers-since-adam-5c1d862b9db0
+https://www.jeremyjordan.me/nn-learning-rate/
+https://towardsdatascience.com/learning-rate-schedules-and-adaptive-learning-rate-methods-for-deep-learning-2c8f433990d1
