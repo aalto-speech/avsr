@@ -31,6 +31,9 @@ ipython_config.py
 *.wav
 *.jpg
 
+# Output log files
+*.out
+
 # User-specific stuff
 /**/.idea/**/workspace.xml
 /**/.idea/**/tasks.xml
