@@ -24,6 +24,9 @@ ipython_config.py
 # i.e. ignore the folder exp anywhere in this project
 /**/exp/
 
+# Ignore the folder logs anywhere in this project
+/**/logs/
+
 # Image and audio samples
 *.wav
 *.jpg
