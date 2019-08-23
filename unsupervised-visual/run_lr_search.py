@@ -1,14 +1,14 @@
 # Author: David Harwath
 import argparse
 import os
-import pickle
+import json
 import time
 import torch
 
 import dataloaders
 import models
 from steps.util import *
-
+from steps.lr_finder import *
 
 print("I am process %s, running on %s: starting (%s)" % (
     os.getpid(), os.uname()[1], time.asctime()))
@@ -24,14 +24,20 @@ parser.add_argument("--optim", type=str, default="sgd",
                     help="training optimizer", choices=["sgd", "adam"])
 parser.add_argument('-b', '--batch-size', default=128, type=int,
                     metavar='N', help='mini-batch size (default: 100)')
-parser.add_argument('--lr', '--learning-rate', default=0.00001, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.0000001, type=float,
                     metavar='LR', help='initial learning rate')
+parser.add_argument('--max-lr', default=10, type=float,
+                    help='maximum learning rate')
 parser.add_argument('--lr-decay', default=5, type=int, metavar='LRDECAY',
                     help='Divide the learning rate by 10 every lr_decay epochs')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
-parser.add_argument('--weight-decay', '--wd', default=5e-7, type=float,
+parser.add_argument('--weight-decay', '--wd', default=1e-2, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
+parser.add_argument('--num-iter', default=2000, type=int,
+                    help='Number of iterations to run the learning rate search')
+parser.add_argument('--mode', default="exp", type=str,
+                    help='LR search mode', choices=["exp", "linear"])
 parser.add_argument("--n_epochs", type=int, default=50,
                     help="number of maximum training epochs")
 parser.add_argument("--n_print_steps", type=int, default=100,
@@ -43,8 +49,6 @@ parser.add_argument("--image-model", type=str, default="VGG16",
 parser.add_argument("--pretrained-image-model", action="store_true",
                     dest="pretrained_image_model", help="Use an image network pretrained on ImageNet")
 parser.add_argument("--margin", type=float, default=1.0, help="Margin paramater for triplet loss")
-parser.add_argument("--simtype", type=str, default="MISA",
-                    help="matchmap similarity function", choices=["SISA", "MISA", "SIMA"])
 parser.add_argument("--input-length", "-L", type=int, default=2048,
                     help="number of input frames", choices=[1024, 2048])
 
@@ -52,6 +56,7 @@ args = parser.parse_args()
 
 print(args)
 
+# Setup loaders, models and loss
 train_loader = torch.utils.data.DataLoader(
     dataloaders.ImageCaptionDataset(args.data_train, audio_conf={'target_length': args.input_length}, image_conf={'center_crop': True}),
     batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True)
@@ -79,6 +84,29 @@ elif args.optim == 'adam':
                                  betas=(0.95, 0.999))
 else:
     raise ValueError('Optimizer %s is not supported' % args.optim)
+
+# Run learning rate search and plot result
+lr_finder = LRFinder(image_model, audio_model, optimizer, criterion, device="cuda")
+lr_finder.range_test(train_loader, val_loader=val_loader, end_lr=args.max_lr, 
+                     num_iter=args.num_iter, step_mode=args.mode)
+loss_name = "LRmin-{}_LRmax-{}_NumIter-{}_Mode-{}_Optim-{}_loss.png".format(
+            args.lr, args.max_lr, args.num_iter, args.mode, args.optim)
+acc_name = "LRmin-{}_LRmax-{}_NumIter-{}_Mode-{}_Optim-{}_acc.png".format(
+            args.lr, args.max_lr, args.num_iter, args.mode, args.optim)
+if args.mode == "exp":
+    lr_finder.plot(loss_name=loss_name, acc_name=acc_name)
+elif args.mode == "linear":
+    lr_finder.plot(log_lr=False, loss_name=loss_name, acc_name=acc_name)
+else:
+    raise ValueError("Expected mode to be one of (exp, linear), got {}".format(args.mode))
+
+# Save results
+save_file = "LRmin-{}_LRmax-{}_NumIter-{}_Mode-{}_Optim-{}_history.txt".format(
+            args.lr, args.max_lr, args.num_iter, args.mode, args.optim)
+best_loss = {"best_loss": lr_finder.best_loss}
+with open(save_file, 'w') as file:
+    file.write(json.dumps(lr_finder.history))
+    file.write(json.dumps(best_loss))
 
 """
 if not bool(args.exp_dir):

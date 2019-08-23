@@ -6,6 +6,7 @@ from tqdm.autonotebook import tqdm
 from torch.optim.lr_scheduler import _LRScheduler
 import matplotlib.pyplot as plt
 
+from .util import *
 
 class LRFinder(object):
     """Learning rate range test.
@@ -40,8 +41,9 @@ class LRFinder(object):
         self.audio_model = audio_model
         self.optimizer = optimizer
         self.criterion = criterion
-        self.history = {"lr": [], "loss": []}
+        self.history = {"lr": [], "loss": [], "acc": []}
         self.best_loss = None
+        self.best_acc = None
         self.memory_cache = memory_cache
         self.cache_dir = cache_dir
 
@@ -97,8 +99,9 @@ class LRFinder(object):
                 threshold:  diverge_th * best_loss. Default: 5.
         """
         # Reset test results
-        self.history = {"lr": [], "loss": []}
+        self.history = {"lr": [], "loss": [], "acc": []}
         self.best_loss = None
+        self.best_acc = None
 
         # Move the model to the proper device
         self.image_model.to(self.device)
@@ -126,9 +129,9 @@ class LRFinder(object):
                 image_inputs, audio_inputs, nframes = next(iterator)
 
             # Train on batch and retrieve loss
-            loss = self._train_batch(image_inputs, audio_inputs)
+            loss, acc = self._train_batch(image_inputs, audio_inputs)
             if val_loader:
-                loss = self._validate(val_loader)
+                loss, acc = self._validate(val_loader)
 
             # Update the learning rate
             lr_schedule.step()
@@ -137,11 +140,15 @@ class LRFinder(object):
             # Track the best loss and smooth it if smooth_f is specified
             if iteration == 0:
                 self.best_loss = loss
+                if acc is not None:
+                    self.best_acc = acc
             else:
                 if smooth_f > 0:
                     loss = smooth_f * loss + (1 - smooth_f) * self.history["loss"][-1]
                 if loss < self.best_loss:
                     self.best_loss = loss
+                if acc is not None and acc > self.best_acc:
+                    self.best_acc = acc
 
             # Check if the loss has diverged; if it has, stop the test
             self.history["loss"].append(loss)
@@ -165,18 +172,23 @@ class LRFinder(object):
         image_outputs = self.image_model(image_inputs)
         audio_outputs = self.audio_model(audio_inputs)
         loss = self.criterion(image_outputs, audio_outputs)
+        acc = None
 
         # Backward pass
         loss.backward()
         self.optimizer.step()
 
-        return loss.item()
+        return loss.item(), acc
 
     def _validate(self, dataloader):
         # Set model to evaluation mode and disable gradient computation
         running_loss = 0
         self.image_model.eval()
         self.audio_model.eval()
+
+        I_embeddings = []
+        A_embeddings = []
+
         with torch.no_grad():
             for (image_inputs, audio_inputs, nframes) in dataloader:
                 # Move data to the correct device
@@ -186,12 +198,25 @@ class LRFinder(object):
                 # Forward pass and loss computation
                 image_outputs = self.image_model(image_inputs)
                 audio_outputs = self.audio_model(audio_inputs)
+
+                image_outputs = image_outputs.to('cpu').detach()
+                audio_outputs = audio_outputs.to('cpu').detach()
+
+                I_embeddings.append(image_outputs)
+                A_embeddings.append(audio_outputs)
+
                 loss = self.criterion(image_outputs, audio_outputs)
                 running_loss += loss.item() * image_inputs.size(0)
 
-        return running_loss / len(dataloader.dataset)
+            image_outputs = torch.cat(I_embeddings)
+            audio_outputs = torch.cat(A_embeddings)
 
-    def plot(self, skip_start=10, skip_end=5, log_lr=True):
+            recalls = calc_recalls(image_outputs, audio_outputs)
+            acc = (recalls['A_r10'] + recalls['I_r10']) / 2
+
+        return running_loss / len(dataloader.dataset), acc
+
+    def plot(self, skip_start=10, skip_end=5, log_lr=True, loss_name="LR_loss.png", acc_name="LR_acc.png"):
         """Plots the learning rate range test.
         Arguments:
             skip_start (int, optional): number of batches to trim from the start.
@@ -211,12 +236,15 @@ class LRFinder(object):
         # properly so the behaviour is the expected
         lrs = self.history["lr"]
         losses = self.history["loss"]
+        accs = self.history["acc"]
         if skip_end == 0:
             lrs = lrs[skip_start:]
             losses = losses[skip_start:]
+            accs = accs[skip_start:]
         else:
             lrs = lrs[skip_start:-skip_end]
             losses = losses[skip_start:-skip_end]
+            accs = accs[skip_start:-skip_end]
 
         # Plot loss as a function of the learning rate
         plt.plot(lrs, losses)
@@ -224,7 +252,14 @@ class LRFinder(object):
             plt.xscale("log")
         plt.xlabel("Learning rate")
         plt.ylabel("Loss")
-        plt.show()
+        plt.savefig(loss_name)
+
+        plt.plot(lrs, accs)
+        if log_lr:
+            plt.xscale("log")
+        plt.xlabel("Learning rate")
+        plt.ylabel("Accuracy")
+        plt.savefig(acc_name)
 
 
 class LinearLR(_LRScheduler):
