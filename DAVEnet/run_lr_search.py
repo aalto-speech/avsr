@@ -58,17 +58,18 @@ print(args)
 
 # Setup loaders, models and loss
 train_loader = torch.utils.data.DataLoader(
-    dataloaders.ImageCaptionDataset(args.data_train, audio_conf={'target_length': args.input_length}, image_conf={'center_crop': True}),
+    dataloaders.ImageCaptionDataset(args.data_train), audio_conf={'target_length': args.input_length},
     batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True)
 
 val_loader = torch.utils.data.DataLoader(
     dataloaders.ImageCaptionDataset(args.data_val, audio_conf={'target_length': args.input_length}, image_conf={'center_crop': True}),
     batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
-audio_model = models.ConvX3AudioNet(input_length=args.input_length)
-image_model = models.VGG16()
+audio_model = models.Davenet(embedding_dim=args.input_length)
+image_model = models.VGG16(embedding_dim=args.input_length, pretrained=args.pretrained_image_model)
 
-criterion = DotLoss()
+
+criterion = MatchMapLoss()
 
 # Set up the optimizer
 audio_trainables = [p for p in audio_model.parameters() if p.requires_grad]
@@ -111,8 +112,6 @@ elif args.mode == "linear":
     lr_finder.plot(log_lr=False, loss_name=loss_name, acc_name=acc_name)
 else:
     raise ValueError("Expected mode to be one of (exp, linear), got {}".format(args.mode))
-
-
 
 """
 if not bool(args.exp_dir):

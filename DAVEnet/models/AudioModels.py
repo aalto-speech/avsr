@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-        
 class Davenet(nn.Module):
     def __init__(self, embedding_dim=1024):
         super(Davenet, self).__init__()

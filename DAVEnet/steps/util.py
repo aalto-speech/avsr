@@ -2,6 +2,18 @@ import math
 import pickle
 import numpy as np
 import torch
+import torch.nn as nn
+
+class MatchMapLoss(nn.Module):
+
+    def __init__(self, margin=1., simtype='MISA'):
+        super(MatchMapLoss, self).__init__()
+        self.margin = margin
+        self.simtype = simtype
+
+    def forward(self, image_outputs, audio_outputs, nframes):
+        return sampled_margin_rank_loss(image_outputs, audio_outputs, nframes,
+                                        margin=self.margin, simtype=self.simtype)
 
 def calc_recalls(image_outputs, audio_outputs, nframes, simtype='MISA'):
     """

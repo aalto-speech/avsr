@@ -131,7 +131,7 @@ class LRFinder(object):
                 image_inputs, audio_inputs, nframes = next(iterator)
 
             # Train on batch and retrieve loss
-            loss, acc = self._train_batch(image_inputs, audio_inputs)
+            loss, acc = self._train_batch(image_inputs, audio_inputs, nframes)
             if val_loader:
                 loss, acc = self._validate(val_loader)
 
@@ -161,7 +161,7 @@ class LRFinder(object):
 
         print("Learning rate search finished. See the graph with {finder_name}.plot()")
 
-    def _train_batch(self, image_inputs, audio_inputs):
+    def _train_batch(self, image_inputs, audio_inputs, nframes):
         # Set model to training mode
         self.image_model.train()
         self.audio_model.train()
@@ -174,7 +174,10 @@ class LRFinder(object):
         self.optimizer.zero_grad()
         image_outputs = self.image_model(image_inputs)
         audio_outputs = self.audio_model(audio_inputs)
-        loss = self.criterion(image_outputs, audio_outputs)
+        pooling_ratio = round(audio_inputs.size(-1) / audio_outputs.size(-1))
+        nframes.div_(pooling_ratio)
+
+        loss = self.criterion(image_outputs, audio_outputs, nframes)
         acc = None
 
         # Backward pass
@@ -189,8 +192,10 @@ class LRFinder(object):
         self.image_model.eval()
         self.audio_model.eval()
 
+        N_examples = len(dataloader.dataset)
         I_embeddings = []
         A_embeddings = []
+        frame_counts = []
 
         with torch.no_grad():
             for (image_inputs, audio_inputs, nframes) in dataloader:
@@ -208,13 +213,19 @@ class LRFinder(object):
                 I_embeddings.append(image_outputs)
                 A_embeddings.append(audio_outputs)
 
+                pooling_ratio = round(audio_inputs.size(-1) / audio_outputs.size(-1))
+                nframes.div_(pooling_ratio)
+
+                frame_counts.append(nframes.cpu())
+
                 loss = self.criterion(image_outputs, audio_outputs)
                 running_loss += loss.item() * image_inputs.size(0)
 
             image_outputs = torch.cat(I_embeddings)
             audio_outputs = torch.cat(A_embeddings)
+            nframes = torch.cat(frame_counts)
 
-            recalls = calc_recalls(image_outputs, audio_outputs)
+            recalls = calc_recalls(image_outputs, audio_outputs, nframes)
             acc = (recalls['A_r10'] + recalls['I_r10']) / 2
 
         return running_loss / len(dataloader.dataset), acc

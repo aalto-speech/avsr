@@ -157,7 +157,7 @@ def validate(audio_model, image_model, val_loader, args):
     audio_model.eval()
 
     end = time.time()
-    N_examples = val_loader.dataset.__len__()
+    N_examples = len(val_loader.dataset)
     I_embeddings = [] 
     A_embeddings = [] 
     frame_counts = []
