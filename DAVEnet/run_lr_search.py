@@ -58,7 +58,7 @@ print(args)
 
 # Setup loaders, models and loss
 train_loader = torch.utils.data.DataLoader(
-    dataloaders.ImageCaptionDataset(args.data_train), audio_conf={'target_length': args.input_length},
+    dataloaders.ImageCaptionDataset(args.data_train, audio_conf={'target_length': args.input_length}),
     batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True)
 
 val_loader = torch.utils.data.DataLoader(

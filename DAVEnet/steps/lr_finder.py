@@ -218,7 +218,7 @@ class LRFinder(object):
 
                 frame_counts.append(nframes.cpu())
 
-                loss = self.criterion(image_outputs, audio_outputs)
+                loss = self.criterion(image_outputs, audio_outputs, nframes)
                 running_loss += loss.item() * image_inputs.size(0)
 
             image_outputs = torch.cat(I_embeddings)
