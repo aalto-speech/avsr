@@ -31,11 +31,6 @@ def train(audio_model, image_model, train_loader, test_loader, args):
     if args.resume:
         progress_pkl = "%s/progress.pkl" % exp_dir
         progress, epoch, global_step, best_epoch, best_acc = load_progress(progress_pkl)
-        print("\nResume training from:")
-        print("  epoch = %s" % epoch)
-        print("  global_step = %s" % global_step)
-        print("  best_epoch = %s" % best_epoch)
-        print("  best_acc = %.4f" % best_acc)
 
     if not isinstance(audio_model, torch.nn.DataParallel):
         audio_model = nn.DataParallel(audio_model)
@@ -138,9 +133,9 @@ def train(audio_model, image_model, train_loader, test_loader, args):
             best_epoch = epoch
             best_acc = avg_acc
             shutil.copyfile("%s/models/audio_model.%d.pth" % (exp_dir, epoch),
-                            "%s/models/best_audio_model.pth" % (exp_dir))
+                            "%s/models/best_audio_model.pth" % exp_dir)
             shutil.copyfile("%s/models/image_model.%d.pth" % (exp_dir, epoch),
-                            "%s/models/best_image_model.pth" % (exp_dir))
+                            "%s/models/best_image_model.pth" % exp_dir)
         _save_progress()
         epoch += 1
 
@@ -228,22 +223,21 @@ def train_classifier(audio_model, train_loader, test_loader, args):
         with open("%s/progress.pkl" % exp_dir, "wb") as f:
             pickle.dump(progress, f)
 
+    if not isinstance(audio_model, torch.nn.DataParallel):
+        audio_model = nn.DataParallel(audio_model)
+
     # create/load exp
     if args.resume:
         progress_pkl = "%s/progress.pkl" % exp_dir
         progress, epoch, global_step, best_epoch, best_acc = load_progress(progress_pkl)
-        print("\nResume training from:")
-        print("  epoch = %s" % epoch)
-        print("  global_step = %s" % global_step)
-        print("  best_epoch = %s" % best_epoch)
-        print("  best_acc = %.4f" % best_acc)
-
-    if not isinstance(audio_model, torch.nn.DataParallel):
-        audio_model = nn.DataParallel(audio_model)
-
-    if epoch != 0:
         audio_model.load_state_dict(torch.load("%s/models/audio_model.%d.pth" % (exp_dir, epoch)))
         print("loaded parameters from epoch %d" % epoch)
+    elif bool(args.reparam_model):
+        progress_pkl = "%s/progress.pkl" % args.reparam_model
+        progress, epoch, global_step, best_epoch, best_acc = load_progress(progress_pkl)
+        audio_model.load_state_dict(torch.load("%s/models/best_audio_model.pth" % args.reparam_model))
+        epoch = best_epoch
+        print("loaded parameters of model %s from epoch %d" % (args.reparam_model, epoch))
 
     audio_model = audio_model.to(device)
     # Set up the optimizer
@@ -260,7 +254,6 @@ def train_classifier(audio_model, train_loader, test_loader, args):
     else:
         raise ValueError('Optimizer %s is not supported' % args.optim)
 
-
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,
                                                            args.num_iter,
                                                            eta_min=args.max_lr)
@@ -272,8 +265,15 @@ def train_classifier(audio_model, train_loader, test_loader, args):
                                                   step_size_up=args.num_iter,
                                                   mode="triangular2")
     """
-    if epoch != 0:
+    if args.resume:
         optimizer.load_state_dict(torch.load("%s/models/optim_state.%d.pth" % (exp_dir, epoch)))
+        for state in optimizer.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device)
+        print("loaded state dict from epoch %d" % epoch)
+    elif bool(args.reparam_model):
+        optimizer.load_state_dict(torch.load("%s/models/optim_state.%d.pth" % (args.reparam_model, epoch)))
         for state in optimizer.state.values():
             for k, v in state.items():
                 if isinstance(v, torch.Tensor):
@@ -286,7 +286,8 @@ def train_classifier(audio_model, train_loader, test_loader, args):
     print("start training...")
 
     audio_model.train()
-    for e in range(epoch, args.n_epochs + 1):
+    # for e in range(epoch, args.n_epochs + 1):
+    while True:
         end_time = time.time()
         audio_model.train()
         for i, (labels, audio_input, nframes) in enumerate(train_loader):

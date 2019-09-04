@@ -21,6 +21,8 @@ parser.add_argument("--exp-dir", type=str, default="",
                     help="directory to dump experiments")
 parser.add_argument("--resume", action="store_true", dest="resume",
                     help="load from exp_dir if True")
+parser.add_argument("--warmup-path", type=str, default="",
+                    help="load warmup weights from the given dir")
 parser.add_argument("--optim", type=str, default="sgd",
                     help="training optimizer", choices=["sgd", "adam"])
 parser.add_argument('-b', '--batch-size', default=128, type=int,
@@ -71,6 +73,10 @@ val_loader = torch.utils.data.DataLoader(
 
 audio_model = models.ConvX3AudioNet(input_length=args.input_length)
 image_model = models.VGG16()
+
+if bool(args.warmup_path):
+    audio_model.load_state_dict(torch.load("%s/models/best_audio_model.pth" % args.warmup_path),
+                                strict=False)
 
 if not bool(args.exp_dir):
     print("exp_dir not specified, automatically creating one...")

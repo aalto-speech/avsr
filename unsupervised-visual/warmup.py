@@ -21,6 +21,8 @@ parser.add_argument("--exp-dir", type=str, default="",
                     help="directory to dump experiments")
 parser.add_argument("--resume", action="store_true", dest="resume",
                     help="load from exp_dir if True")
+parser.add_argument("--reparam-model", type=str, default="",
+                    help="load the best model from given directory")
 parser.add_argument("--optim", type=str, default="sgd",
                     help="training optimizer", choices=["sgd", "adam"])
 parser.add_argument('-b', '--batch-size', default=128, type=int,

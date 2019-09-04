@@ -143,7 +143,7 @@ def adjust_learning_rate(base_lr, lr_decay, optimizer, epoch):
         param_group['lr'] = lr
 
 
-def load_progress(prog_pkl, quiet=False):
+def load_progress(prog_pkl, quiet=False, epoch_index=-1):
     """
     load progress pkl file
     Args:
@@ -162,9 +162,14 @@ def load_progress(prog_pkl, quiet=False):
 
     with open(prog_pkl, "rb") as f:
         prog = pickle.load(f)
-        epoch, global_step, best_epoch, best_avg_r10, _ = prog[-1]
+        epoch, global_step, best_epoch, best_avg_r10, _ = prog[epoch_index]
 
     _print("\nPrevious Progress:")
     msg = "[%5s %7s %5s %7s %6s]" % ("epoch", "step", "best_epoch", "best_avg_r10", "time")
     _print(msg)
+    print("\nResume training from:")
+    print("  epoch = %s" % epoch)
+    print("  global_step = %s" % global_step)
+    print("  best_epoch = %s" % best_epoch)
+    print("  best_acc = %.4f" % best_avg_r10)
     return prog, epoch, global_step, best_epoch, best_avg_r10

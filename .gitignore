@@ -8,6 +8,7 @@ __pycache__/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+Untitled.ipynb
 
 # IPython
 profile_default/
@@ -30,6 +31,7 @@ ipython_config.py
 # Image and audio samples
 *.wav
 *.jpg
+*.png
 
 # Output log files
 *.out
