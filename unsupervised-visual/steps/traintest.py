@@ -260,9 +260,18 @@ def train_classifier(audio_model, train_loader, test_loader, args):
     else:
         raise ValueError('Optimizer %s is not supported' % args.optim)
 
-    scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=args.lr, max_lr=args.max_lr,
-                                                  step_size_up=args.num_iter, mode="triangular2")
 
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,
+                                                           args.num_iter,
+                                                           eta_min=args.max_lr)
+    """
+    Default Torch on Triton is old and doesn't yet have the CyclicLR optimizer
+    scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer,
+                                                  base_lr=args.lr,
+                                                  max_lr=args.max_lr,
+                                                  step_size_up=args.num_iter,
+                                                  mode="triangular2")
+    """
     if epoch != 0:
         optimizer.load_state_dict(torch.load("%s/models/optim_state.%d.pth" % (exp_dir, epoch)))
         for state in optimizer.state.values():
@@ -295,8 +304,9 @@ def train_classifier(audio_model, train_loader, test_loader, args):
             loss = cross_entropy_loss(audio_output, labels)
 
             loss.backward()
+            # Triton has torch 1.0.0 where scheduler step is executed firsts
+            scheduler.step()
             optimizer.step()
-            scheduler.step(epoch=i)
 
             # record loss
             loss_meter.update(loss.item(), B)
@@ -327,8 +337,6 @@ def train_classifier(audio_model, train_loader, test_loader, args):
             best_acc = acc
             shutil.copyfile("%s/models/audio_model.%d.pth" % (exp_dir, epoch),
                             "%s/models/best_audio_model.pth" % (exp_dir))
-            shutil.copyfile("%s/models/image_model.%d.pth" % (exp_dir, epoch),
-                            "%s/models/best_image_model.pth" % (exp_dir))
         _save_progress()
         epoch += 1
 
@@ -359,5 +367,5 @@ def validate_classifier(audio_model, val_loader, args):
             end = time.time()
 
     accuracy = correct / total
-    print("Accuracy of the network on the 1000 validation samples: {:d} %".format(100 * accuracy))
+    print("Accuracy of the network on the 1000 validation samples: {:.2f} %".format(100 * accuracy))
     return accuracy

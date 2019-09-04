@@ -29,7 +29,7 @@ class ConvX3AudioNet(nn.Module):
 # for the above net.
 class ConvX3AudioClassifierNet(nn.Module):
     def __init__(self, embedding_dim=1024, input_length=2048):
-        super(ConvX3AudioNet, self).__init__()
+        super(ConvX3AudioClassifierNet, self).__init__()
         self.embedding_dim = embedding_dim
         self.conv1 = nn.Conv2d(1, 64, kernel_size=(40, 5), stride=(1, 1), padding=(0, 2))
         self.conv2 = nn.Conv2d(64, 512, kernel_size=(1, 25), stride=(1, 1), padding=(0, 12))
