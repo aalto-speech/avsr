@@ -27,21 +27,26 @@ def train(audio_model, image_model, train_loader, test_loader, args):
         with open("%s/progress.pkl" % exp_dir, "wb") as f:
             pickle.dump(progress, f)
 
-    # create/load exp
-    if args.resume:
-        progress_pkl = "%s/progress.pkl" % exp_dir
-        progress, epoch, global_step, best_epoch, best_acc = load_progress(progress_pkl)
-
     if not isinstance(audio_model, torch.nn.DataParallel):
         audio_model = nn.DataParallel(audio_model)
 
     if not isinstance(image_model, torch.nn.DataParallel):
         image_model = nn.DataParallel(image_model)
 
-    if epoch != 0:
+        # create/load exp
+    if args.resume:
+        progress_pkl = "%s/progress.pkl" % exp_dir
+        progress, epoch, global_step, best_epoch, best_acc = load_progress(progress_pkl)
         audio_model.load_state_dict(torch.load("%s/models/audio_model.%d.pth" % (exp_dir, epoch)))
         image_model.load_state_dict(torch.load("%s/models/image_model.%d.pth" % (exp_dir, epoch)))
         print("loaded parameters from epoch %d" % epoch)
+    elif bool(args.reparam_model):
+        progress_pkl = "%s/progress.pkl" % args.reparam_model
+        progress, epoch, global_step, best_epoch, best_acc = load_progress(progress_pkl)
+        audio_model.load_state_dict(torch.load("%s/models/best_audio_model.pth" % args.reparam_model))
+        image_model.load_state_dict(torch.load("%s/models/best_image_model.pth" % args.reparam_model))
+        epoch = best_epoch
+        print("loaded parameters of model %s from epoch %d" % (args.reparam_model, epoch))
 
     audio_model = audio_model.to(device)
     image_model = image_model.to(device)
@@ -60,8 +65,27 @@ def train(audio_model, image_model, train_loader, test_loader, args):
     else:
         raise ValueError('Optimizer %s is not supported' % args.optim)
 
-    if epoch != 0:
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,
+                                                           args.num_iter,
+                                                           eta_min=args.lr_limit)
+    """
+    Default Torch on Triton is old and doesn't yet have the CyclicLR optimizer
+    scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer,
+                                                  base_lr=args.lr,
+                                                  max_lr=args.lr_limit,
+                                                  step_size_up=args.num_iter,
+                                                  mode="triangular2")
+    """
+
+    if args.resume:
         optimizer.load_state_dict(torch.load("%s/models/optim_state.%d.pth" % (exp_dir, epoch)))
+        for state in optimizer.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device)
+        print("loaded state dict from epoch %d" % epoch)
+    elif bool(args.reparam_model):
+        optimizer.load_state_dict(torch.load("%s/models/optim_state.%d.pth" % (args.reparam_model, epoch)))
         for state in optimizer.state.values():
             for k, v in state.items():
                 if isinstance(v, torch.Tensor):
@@ -75,8 +99,9 @@ def train(audio_model, image_model, train_loader, test_loader, args):
 
     audio_model.train()
     image_model.train()
-    for e in range(epoch, args.n_epochs + 1):
-        adjust_learning_rate(args.lr, args.lr_decay, optimizer, epoch)
+    # for e in range(epoch, args.n_epochs + 1):
+    while True:
+        #adjust_learning_rate(args.lr, args.lr_decay, optimizer, epoch)
         end_time = time.time()
         audio_model.train()
         image_model.train()
@@ -99,6 +124,8 @@ def train(audio_model, image_model, train_loader, test_loader, args):
             loss = dot_loss(image_output, audio_output)
 
             loss.backward()
+            # Triton has torch 1.0.0 where scheduler step is executed first
+            scheduler.step()
             optimizer.step()
 
             # record loss
@@ -297,15 +324,16 @@ def train_classifier(audio_model, train_loader, test_loader, args):
 
             audio_input = audio_input.to(device)
             labels = labels.to(device)
-
+            print(labels)
             optimizer.zero_grad()
 
             audio_output = audio_model(audio_input)
-
+            print(audio_output.shape)
+            print(labels.shape)
             loss = cross_entropy_loss(audio_output, labels)
 
             loss.backward()
-            # Triton has torch 1.0.0 where scheduler step is executed firsts
+            # Triton has torch 1.0.0 where scheduler step is executed first
             scheduler.step()
             optimizer.step()
 
