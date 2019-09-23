@@ -20,6 +20,8 @@ parser.add_argument("--data-val", type=str, default='',
                     help="validation data json")
 parser.add_argument("--exp-dir", type=str, default="",
                     help="directory to dump experiments")
+parser.add_argument("--train-path", type=str, default="",
+                    help="load trained model weights from the given dir")
 parser.add_argument("--optim", type=str, default="sgd",
                     help="training optimizer", choices=["sgd", "adam"])
 parser.add_argument('-b', '--batch-size', default=128, type=int,
@@ -68,6 +70,8 @@ val_loader = torch.utils.data.DataLoader(
 audio_model = models.Davenet(embedding_dim=args.input_length)
 image_model = models.VGG16(embedding_dim=args.input_length, pretrained=args.pretrained_image_model)
 
+if bool(args.train_path):
+    audio_model.load_state_dict(torch.load("%s/models/best_audio_model.pth" % args.train_path), strict=False)
 
 criterion = MatchMapLoss()
 

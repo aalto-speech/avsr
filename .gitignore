@@ -33,8 +33,14 @@ ipython_config.py
 *.jpg
 *.png
 
+# Text files
+*.txt
+
 # Output log files
 *.out
+
+# Slurm scripts
+*.slrm
 
 # User-specific stuff
 /**/.idea/**/workspace.xml
