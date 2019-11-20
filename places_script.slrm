@@ -4,6 +4,17 @@
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=4
 
-python run.py --data-train /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/train.json --data-val /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/val.json -b 128 --lr 0.001 --pretrained-image-model --n_epochs 20
+# Jormalle:
+# - n_epochs parametri ei tällä hetkellä tee mitään muuta kuin vaikuttaa siihen, minkä nimiseen kansioon malli tallennetaan. steps/traintest.py tiedostossa on (rivillä 82) ikuinen while-loop eli mallia treenataan niin kauan kunnes se manuaalisesti katkaistaan. Koodissa on kommentoituna vaihtoehtona for-loop, joka on n_epochsia pitkä. 
+# - traintest.py tiedostossa on kaksi train-funktiota, toinen on warmupia varten.
 
-python warmup.py --data-train /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/classification_train.json --data-val /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/classification_val.json -b 128 --lr 0.01 --optim sgd --max-lr 0.00001 --num-iter 4000 --n_epochs 5
+# Warmup/pretrain audioverkolle 
+python warmup.py --data-train /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/classification_train.json --data-val /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/classification_val.json -b 128 --lr 0.01 --optim sgd --max-lr 0.00001 --num-iter 4000 --n_epochs 10
+
+# Käytä pretrain/warmup painoja audioverkossa
+python run.py --data-train /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/train.json --data-val /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/val.json -b 128 --lr 0.001 --pretrained-image-model --n_epochs 10 --lr-decay 40 --warmup-path exp/Data-classification_train.json/AudioModel-DaveClassifier_Optim-sgd_LR-0.01_Epochs-10
+
+# Aja ilman audioverkon warmup/pretraining painoja
+#python run.py --data-train /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/train.json --data-val /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/val.json -b 128 --lr 0.001 --pretrained-image-model --n_epochs 20
+
+
