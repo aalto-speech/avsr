@@ -1,0 +1,7 @@
+#!/bin/bash
+#SBATCH --time=10:00:00    # Rough heuristic: 1 hour per epoch 
+#SBATCH --gres=gpu:2
+#SBATCH --mem=32G
+#SBATCH --cpus-per-task=4
+
+python run.py --data-train /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/train.json --data-val /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/val.json -b 128 --lr 0.001 --pretrained-image-model --n_epochs 20
