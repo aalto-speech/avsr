@@ -5,3 +5,5 @@
 #SBATCH --cpus-per-task=4
 
 python run.py --data-train /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/train.json --data-val /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/val.json -b 128 --lr 0.001 --pretrained-image-model --n_epochs 20
+
+python warmup.py --data-train /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/classification_train.json --data-val /scratch/elec/puhe/c/placesaudio/PlacesAudio_400k_distro/metadata/classification_val.json -b 128 --lr 0.01 --optim sgd --max-lr 0.00001 --num-iter 4000 --n_epochs 5
