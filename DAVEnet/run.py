@@ -6,7 +6,6 @@ import time
 import torch
 
 import dataloaders
-import models
 from steps import train
 
 print("I am process %s, running on %s: starting (%s)" % (
@@ -43,10 +42,10 @@ parser.add_argument("--n_epochs", type=int, default=100,
         help="number of maximum training epochs")
 parser.add_argument("--n_print_steps", type=int, default=100,
         help="number of steps to print statistics")
-parser.add_argument("--audio-model", type=str, default="Davenet",
-        help="audio model architecture", choices=["Davenet"])
+parser.add_argument("--audio-model", type=str, default="DaveNet",
+        help="audio model architecture", choices=["DaveNet", "ResDaveNet"])
 parser.add_argument("--image-model", type=str, default="VGG16",
-        help="image model architecture", choices=["VGG16"])
+        help="image model architecture", choices=["VGG16", "ResNet50"])
 parser.add_argument("--pretrained-image-model", action="store_true",
     dest="pretrained_image_model", help="Use an image network pretrained on ImageNet")
 parser.add_argument("--margin", type=float, default=1.0, help="Margin paramater for triplet loss")
@@ -73,8 +72,12 @@ val_loader = torch.utils.data.DataLoader(
     dataloaders.ImageCaptionDataset(args.data_val, image_conf={'center_crop':True}),
     batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
-audio_model = models.Davenet()
-image_model = models.VGG16(pretrained=args.pretrained_image_model)
+# Pick right model based on string input
+models_module = __import__("models")
+audio_class = getattr(models_module, args.audio_model)
+image_class = getattr(models_module, args.image_model)
+audio_model = audio_class()
+image_model = image_class(pretrained=args.pretrained_image_model)
 
 if bool(args.warmup_path):
     audio_model.load_state_dict(torch.load("%s/models/best_audio_model.pth" % args.warmup_path), strict=False)

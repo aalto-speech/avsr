@@ -67,7 +67,7 @@ val_loader = torch.utils.data.DataLoader(
     dataloaders.ImageCaptionDataset(args.data_val, audio_conf={'target_length': args.input_length}, image_conf={'center_crop': True}),
     batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
-audio_model = models.Davenet(embedding_dim=args.input_length)
+audio_model = models.DaveNet(embedding_dim=args.input_length)
 image_model = models.VGG16(embedding_dim=args.input_length, pretrained=args.pretrained_image_model)
 
 if bool(args.train_path):

@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class Davenet(nn.Module):
+class DaveNet(nn.Module):
     def __init__(self, embedding_dim=1024):
-        super(Davenet, self).__init__()
+        super(DaveNet, self).__init__()
         self.embedding_dim = embedding_dim
         self.batchnorm1 = nn.BatchNorm2d(1)
         self.conv1 = nn.Conv2d(1, 128, kernel_size=(40, 1), stride=(1, 1), padding=(0, 0))
@@ -33,9 +33,9 @@ class Davenet(nn.Module):
         return x
 
 
-class DavenetClassifier(nn.Module):
+class DaveNetClassifier(nn.Module):
     def __init__(self, embedding_dim=1024, input_length=2048):
-        super(DavenetClassifier, self).__init__()
+        super(DaveNetClassifier, self).__init__()
         self.embedding_dim = embedding_dim
         self.input_length = input_length
         self.batchnorm1 = nn.BatchNorm2d(1)

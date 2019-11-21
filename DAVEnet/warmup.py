@@ -73,7 +73,7 @@ val_loader = torch.utils.data.DataLoader(
     dataloaders.LabelCaptionDataset(args.data_val, audio_conf={'target_length': args.input_length}),
     batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
-audio_model = models.DavenetClassifier()
+audio_model = models.DaveNetClassifier()
 
 if not bool(args.exp_dir):
     print("exp_dir not specified, automatically creating one...")

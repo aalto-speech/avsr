@@ -1,12 +1,11 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torchvision.models as imagemodels
 import torch.utils.model_zoo as model_zoo
 
-class Resnet18(imagemodels.ResNet):
+
+class ResNet18(imagemodels.ResNet):
     def __init__(self, embedding_dim=1024, pretrained=False):
-        super(Resnet18, self).__init__(imagemodels.resnet.BasicBlock, [2, 2, 2, 2])
+        super(ResNet18, self).__init__(imagemodels.resnet.BasicBlock, [2, 2, 2, 2])
         if pretrained:
             self.load_state_dict(model_zoo.load_url(imagemodels.resnet.model_urls['resnet18']))
         self.avgpool = None
@@ -27,9 +26,10 @@ class Resnet18(imagemodels.ResNet):
         x = self.embedder(x)
         return x
 
-class Resnet34(imagemodels.ResNet):
+
+class ResNet34(imagemodels.ResNet):
     def __init__(self, embedding_dim=1024, pretrained=False):
-        super(Resnet34, self).__init__(imagemodels.resnet.BasicBlock, [3, 4, 6, 3])
+        super(ResNet34, self).__init__(imagemodels.resnet.BasicBlock, [3, 4, 6, 3])
         if pretrained:
             self.load_state_dict(model_zoo.load_url(imagemodels.resnet.model_urls['resnet34']))
         self.avgpool = None
@@ -48,9 +48,10 @@ class Resnet34(imagemodels.ResNet):
         x = self.embedder(x)
         return x
 
-class Resnet50(imagemodels.ResNet):
+
+class ResNet50(imagemodels.ResNet):
     def __init__(self, embedding_dim=1024, pretrained=False):
-        super(Resnet50, self).__init__(imagemodels.resnet.Bottleneck, [3, 4, 6, 3])
+        super(ResNet50, self).__init__(imagemodels.resnet.Bottleneck, [3, 4, 6, 3])
         if pretrained:
             self.load_state_dict(model_zoo.load_url(imagemodels.resnet.model_urls['resnet50']))
         self.avgpool = None
@@ -69,14 +70,15 @@ class Resnet50(imagemodels.ResNet):
         x = self.embedder(x)
         return x
 
+
 class VGG16(nn.Module):
     def __init__(self, embedding_dim=1024, pretrained=False):
         super(VGG16, self).__init__()
         seed_model = imagemodels.__dict__['vgg16'](pretrained=pretrained).features
-        seed_model = nn.Sequential(*list(seed_model.children())[:-1]) # remove final maxpool
+        seed_model = nn.Sequential(*list(seed_model.children())[:-1])  # remove final maxpool
         last_layer_index = len(list(seed_model.children()))
         seed_model.add_module(str(last_layer_index),
-            nn.Conv2d(512, embedding_dim, kernel_size=(3,3), stride=(1,1), padding=(1,1)))
+                              nn.Conv2d(512, embedding_dim, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)))
         self.image_model = seed_model
 
     def forward(self, x):
