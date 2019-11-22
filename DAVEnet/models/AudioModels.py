@@ -91,7 +91,7 @@ class BasicBlock(nn.Module):
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv1x9(inplanes, planes, stride)
         self.bn1 = norm_layer(planes)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
         self.conv2 = conv1x9(planes, planes)
         self.bn2 = norm_layer(planes)
         self.downsample = downsample
@@ -126,7 +126,7 @@ class ResDaveNet(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.conv1 = nn.Conv2d(1, 128, kernel_size=(40, 1), stride=(1, 1), padding=(0, 0))
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
         self.batchnorm1 = self._norm_layer(self.inplanes)
 
         self.stack1 = self._make_residual_block(BasicBlock, 128, 2, stride=2)
